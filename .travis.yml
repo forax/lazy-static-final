@@ -13,10 +13,11 @@ install:
 
 script:
   - ./pro/bin/pro
-  - bash ./pro/bin/java --enable-preview
-                 --module-path target/main/artifact:deps
-                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.Hello
-                 -XX:+UnlockDiagnosticVMOptions -XX:+LogTouchedMethods -XX:+PrintTouchedMethodsAtExit > ./boot-methods.txt
+#  - ./pro/bin/java --enable-preview
+#                 --module-path target/main/artifact:deps
+#                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.Hello
+#                 -XX:+UnlockDiagnosticVMOptions -XX:+LogTouchedMethods -XX:+PrintTouchedMethodsAtExit > ./boot-methods.txt
+  - bash generate-touched-methods
   - cat ./boot-methods.txt
   - ./pro/bin/java --enable-preview
                  --module-path target/main/artifact:deps
