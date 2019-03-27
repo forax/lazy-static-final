@@ -34,7 +34,11 @@ public class FindUnusedStaticFinal {
   }
   
   public static void main(String[] args) throws IOException {
-    var path = Path.of("boot-methods.txt");
+    if (args.length != 1) {
+      System.err.println("error no boot methods file provided");
+      return;
+    }
+    var path = Path.of(args[0]);
     var classToMethodsMap = Files.lines(path)
         .filter(line -> !line.startsWith("#"))
         .map(FindUnusedStaticFinal::splitByDot)
