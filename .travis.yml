@@ -1,0 +1,24 @@
+sudo: true
+dist: trusty
+language: java
+jdk: openjdk11
+
+env:
+  - PRO_SPECIAL_BUILD='12-early-access'
+
+# https://github.com/travis-ci/travis-ci/issues/8408
+before_install:
+  - unset _JAVA_OPTIONS
+
+install:
+  - java pro_wrapper.java version
+
+script:
+  - ./pro/bin/pro
+  - ./pro/bin/java --enable-preview \
+                 --module-path target/main/artifact:deps \
+                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.Hello \
+                 -XX:+UnlockDiagnosticVMOptions -XX:+LogTouchedMethods -XX:+PrintTouchedMethodsAtExit > boot-methods.txt
+  - ./pro/bin/java --enable-preview \
+                 --module-path target/main/artifact:deps \
+                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.FindUnusedStaticFinal boot-methods.txt
