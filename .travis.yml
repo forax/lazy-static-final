@@ -13,9 +13,9 @@ install:
 
 script:
   - ./pro/bin/pro
-  - ./pro/bin/java --enable-preview
+  - bash ./pro/bin/java --enable-preview
                  --module-path target/main/artifact:deps
-                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.HelloWorld
+                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.Hello
                  -XX:+UnlockDiagnosticVMOptions -XX:+LogTouchedMethods -XX:+PrintTouchedMethodsAtExit > ./boot-methods.txt
   - cat ./boot-methods.txt
   - ./pro/bin/java --enable-preview
