@@ -13,15 +13,18 @@ Using Java 11+, run
   pro/bin/pro
 ```
 
-# find all methods used to run helloworld
-```
-  ./pro/bin/pro build find-touched-methods.pro
-```
-
-# find usused static final
+# ask the VM to log all methods used to run HelloWorld
 ```
   ./pro/bin/java --enable-preview \
                  --module-path target/main/artifact:deps \
-                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.FindUnusedStaticFinal
+                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.Hello \
+                 -XX:+UnlockDiagnosticVMOptions -XX:+LogTouchedMethods -XX:+PrintTouchedMethodsAtExit > boot-methods.txt
+```
+
+# find unused static final (when running HelloWorld)
+```
+  ./pro/bin/java --enable-preview \
+                 --module-path target/main/artifact:deps \
+                 --module fr.umlv.lazystaticfinal/fr.umlv.lazystaticfinal.FindUnusedStaticFinal boot-methods.txt
 ```
 
