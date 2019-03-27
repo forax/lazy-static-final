@@ -18,7 +18,7 @@ resolver.
     )
 
 compiler.
-    sourceRelease(13).
+    sourceRelease(Runtime.version().feature()).   // build latest version
     enablePreview(true)
 
 runner.
