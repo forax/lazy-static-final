@@ -6,30 +6,16 @@ import static java.nio.file.Files.write;
 import static org.objectweb.asm.ClassWriter.COMPUTE_FRAMES;
 import static org.objectweb.asm.ClassWriter.COMPUTE_MAXS;
 import static org.objectweb.asm.Opcodes.ACC_STATIC;
-import static org.objectweb.asm.Opcodes.ACONST_NULL;
 import static org.objectweb.asm.Opcodes.ASM7;
-import static org.objectweb.asm.Opcodes.DCONST_0;
-import static org.objectweb.asm.Opcodes.FCONST_0;
 import static org.objectweb.asm.Opcodes.GETSTATIC;
 import static org.objectweb.asm.Opcodes.H_INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.ICONST_0;
 import static org.objectweb.asm.Opcodes.INVOKESTATIC;
-import static org.objectweb.asm.Opcodes.LCONST_0;
-import static org.objectweb.asm.Opcodes.POP;
-import static org.objectweb.asm.Opcodes.POP2;
 import static org.objectweb.asm.Opcodes.PUTSTATIC;
-import static org.objectweb.asm.Type.BOOLEAN;
-import static org.objectweb.asm.Type.BYTE;
-import static org.objectweb.asm.Type.CHAR;
-import static org.objectweb.asm.Type.DOUBLE;
-import static org.objectweb.asm.Type.FLOAT;
-import static org.objectweb.asm.Type.INT;
-import static org.objectweb.asm.Type.LONG;
-import static org.objectweb.asm.Type.SHORT;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Path;
+import java.util.HashMap;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -37,44 +23,181 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.ConstantDynamic;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Handle;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
+import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.util.CheckClassAdapter;
 
-@SuppressWarnings("preview")  // disable preview feature warning
 public class Rewriter {
   private static final String RT_CLASS = RT.class.getName().replace('.', '/');
   private static final Handle BSM = new Handle(H_INVOKESTATIC, RT_CLASS, "bsm",
       "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/invoke/MethodHandle;)Ljava/lang/Object;", false);
   
+  static class LazyField {
+    private final FieldNode field;
+    
+    private final MethodInsnNode initCall;
+    
+    public LazyField(FieldNode field, MethodInsnNode initCall) {
+      this.field = field;
+      this.initCall = initCall;
+    }
+    
+    public LazyField withInitCall(MethodInsnNode initCall) {
+      return new LazyField(field, initCall);
+    }
+    
+    public void generateAccessor(ClassVisitor cv) {
+      var accessor = cv.visitMethod(field.access, field.name, "()" + field.desc, /*FIXME*/null, null);
+      accessor.visitCode();
+      generateLdc(accessor);
+      accessor.visitInsn(Type.getType(field.desc).getOpcode(Opcodes.IRETURN));
+      accessor.visitMaxs(-1, -1);
+      accessor.visitEnd();
+    }
+    
+    public void generateLdc(MethodVisitor mv) {
+      var initHandle = new Handle(H_INVOKESTATIC, initCall.owner, initCall.name, initCall.desc, initCall.itf);
+      mv.visitLdcInsn(new ConstantDynamic(field.name, field.desc, BSM, initHandle));
+    }
+  }
+  
+  static abstract class ClassInitMethodVisitor extends MethodVisitor {
+    MethodInsnNode delayedInitCall;
+    
+    public ClassInitMethodVisitor(int api, MethodVisitor mv) {
+      super(api, mv);
+    }
+    
+    void generateDelayedMethod() {
+      var node = delayedInitCall;
+      if (node != null) {
+        mv.visitMethodInsn(node.getOpcode(), node.owner, node.name, node.desc, node.itf);
+        delayedInitCall = null;
+      }
+    }
+    
+    @Override
+    public void visitIincInsn(int var, int increment) {
+      generateDelayedMethod();
+      super.visitIincInsn(var, increment);
+    }
+    @Override
+    public void visitInsn(int opcode) {
+      generateDelayedMethod();
+      super.visitInsn(opcode);
+    }
+    @Override
+    public void visitIntInsn(int opcode, int operand) {
+      generateDelayedMethod();
+      super.visitIntInsn(opcode, operand);
+    }
+    @Override
+    public void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
+      generateDelayedMethod();
+      super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
+    }
+    @Override
+    public void visitJumpInsn(int opcode, Label label) {
+      generateDelayedMethod();
+      super.visitJumpInsn(opcode, label);
+    }
+    @Override
+    public void visitLdcInsn(Object value) {
+      generateDelayedMethod();
+      super.visitLdcInsn(value);
+    }
+    @Override
+    public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+      generateDelayedMethod();
+      super.visitLookupSwitchInsn(dflt, keys, labels);
+    }
+    @Override
+    public void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
+      generateDelayedMethod();
+      super.visitMultiANewArrayInsn(descriptor, numDimensions);
+    }
+    @Override
+    public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
+      generateDelayedMethod();
+      super.visitTableSwitchInsn(min, max, dflt, labels);
+    }
+    @Override
+    public void visitTypeInsn(int opcode, String type) {
+      generateDelayedMethod();
+      super.visitTypeInsn(opcode, type);
+    }
+    @Override
+    public void visitVarInsn(int opcode, int var) {
+      generateDelayedMethod();
+      super.visitVarInsn(opcode, var);
+    }
+    
+    @Override
+    public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      generateDelayedMethod();
+      if (opcode == INVOKESTATIC && descriptor.startsWith("()")) {
+        delayedInitCall = new MethodInsnNode(opcode, owner, name, descriptor, isInterface);
+        return;
+      }
+      super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+    }
+  }
+  
   private static byte[] rewrite(byte[] code) {
     var reader = new ClassReader(code);
-    var writer = new ClassWriter(reader, COMPUTE_MAXS|COMPUTE_FRAMES);
-    reader.accept(new ClassVisitor(ASM7, writer) {
-      private String currentClassName;
-      
-      @Override
-      public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-        currentClassName = name;
-        super.visit(version, access, name, signature, superName, interfaces);
-      }
-      
+    var currentClassName = reader.getClassName();
+    
+    // first find all lazy static fields and their initializers
+    var fieldMap = new HashMap<String, LazyField>();
+    reader.accept(new ClassVisitor(ASM7) {
       @Override
       public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
         if (name.endsWith("_lazy")) {
           if ((access & ACC_STATIC) == 0) {
             throw new IllegalStateException("field " + currentClassName + "." + name + " should be declared static");
           }
-          
-          var accessor = writer.visitMethod(access, name, "()" + descriptor, null, null);
-          accessor.visitCode();
-          var initHandle = new Handle(H_INVOKESTATIC, currentClassName, "init_" + name, "()" + descriptor, false);
-          accessor.visitLdcInsn(new ConstantDynamic(name, descriptor, BSM, initHandle));
-          accessor.visitInsn(Type.getType(descriptor).getOpcode(Opcodes.IRETURN));
-          //accessor.visitInsn(RETURN);
-          accessor.visitMaxs(-1, -1);
-          accessor.visitEnd();
+          if (value != null) {
+            throw new IllegalStateException("field " + currentClassName + "." + name + " should not contains a primitive or a String constant");
+          }
+          var fieldNode = new FieldNode(access, name, descriptor, signature, value);
+          fieldMap.put(name + '.' + descriptor, new LazyField(fieldNode, null));
+        }
+        return null;
+      }
+      
+      @Override
+      public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+        if (name.equals("<clinit>")) {
+          return new ClassInitMethodVisitor(ASM7, null) {
+            @Override
+            public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+              if (opcode == PUTSTATIC && owner.equals(currentClassName) && name.endsWith("_lazy")) {
+                if (delayedInitCall == null) {
+                  throw new IllegalStateException("bad code shape, " + currentClassName + "." + name + " is not initialized with a no arg static method");
+                }
+                fieldMap.computeIfPresent(name + '.' + descriptor, (__, field) -> field.withInitCall(delayedInitCall));
+              }
+              delayedInitCall = null;
+              return;
+            }
+          };
+        }
+        return null;
+      }
+    }, ClassReader.SKIP_DEBUG|ClassReader.SKIP_FRAMES);
+    
+    
+    // then rewrite the bytecode
+    var writer = new ClassWriter(reader, COMPUTE_MAXS|COMPUTE_FRAMES);
+    reader.accept(new ClassVisitor(ASM7, writer) {
+      @Override
+      public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+        // remove lazy static field
+        if (fieldMap.containsKey(name + '.' + descriptor)) {
           return null;
         }
         return super.visitField(access, name, descriptor, signature, value);
@@ -84,32 +207,15 @@ public class Rewriter {
       public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
         var mv = super.visitMethod(access, name, descriptor, signature, exceptions);
         if (name.equals("<clinit>")) {
-          mv = new MethodVisitor(ASM7, mv) {
-            @Override
-            public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
-              if (opcode == INVOKESTATIC && name.endsWith("_lazy") && name.startsWith("init_")) {
-                if (!descriptor.startsWith("()")) {
-                  throw new IllegalStateException("init method for " + name + " should not take parameter in static block of " + currentClassName);
-                }
-                
-                var type = Type.getType(descriptor.substring(2));
-                mv.visitInsn(switch(type.getSort()) {
-                  case BOOLEAN, BYTE, SHORT, CHAR, INT -> ICONST_0;
-                  case LONG -> LCONST_0;
-                  case FLOAT -> FCONST_0;
-                  case DOUBLE -> DCONST_0;
-                  default -> ACONST_NULL;
-                });
-                return;
-              }
-              super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-            }
+          mv = new ClassInitMethodVisitor(ASM7, mv) {
             @Override
             public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
               if (opcode == PUTSTATIC && owner.equals(currentClassName) && name.endsWith("_lazy")) {
-                mv.visitInsn(descriptor.equals("D") || descriptor.equals("J")? POP2: POP);
+                // don't generate anything and reset delayedInitCall
+                delayedInitCall = null;
                 return;
               }
+              generateDelayedMethod();
               super.visitFieldInsn(opcode, owner, name, descriptor);
             }   
           };
@@ -117,18 +223,27 @@ public class Rewriter {
         return new MethodVisitor(ASM7, mv) {
           @Override
           public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+            System.err.println("visitFieldInsn" + owner + '.' + name + descriptor + " in " + currentClassName);
             if (opcode == GETSTATIC && name.endsWith("_lazy")) {
               if (currentClassName.equals(owner)) {
-                var initHandle = new Handle(H_INVOKESTATIC, currentClassName, "init_" + name, "()" + descriptor, false);
-                mv.visitLdcInsn(new ConstantDynamic(name, descriptor, BSM, initHandle));
+                var field = fieldMap.get(name + '.' + descriptor);
+                field.generateLdc(mv);
               } else {
-                mv.visitMethodInsn(INVOKESTATIC, owner, name, "()" + descriptor, false);
+                mv.visitMethodInsn(INVOKESTATIC, owner, name, "()" + descriptor, /*FIXME*/false);
               }
             } else {
               super.visitFieldInsn(opcode, owner, name, descriptor);
             }
           }
         };
+      }
+      
+      @Override
+      public void visitEnd() {
+        for(var field: fieldMap.values()) {
+          field.generateAccessor(cv);
+        }
+        super.visitEnd();
       }
     }, 0);
     

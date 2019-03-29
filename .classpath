@@ -26,4 +26,9 @@
 			<attribute name="module" value="true"/>
 		</attributes>
 	</classpathentry>
+	<classpathentry kind="lib" path="deps/org.objectweb.asm.tree.jar">
+        <attributes>
+            <attribute name="module" value="true"/>
+        </attributes>
+    </classpathentry>
 </classpath>

@@ -5,11 +5,11 @@ import java.nio.file.Path;
 public class Main {
   private static final Path HOME_lazy;
   static {
-    HOME_lazy = init_HOME_lazy();
+    HOME_lazy = initHOME();
   }
   
-  private static Path init_HOME_lazy() {
-    System.out.println("init HOME_lazy");
+  private static Path initHOME() {
+    System.out.println("init HOME");
     return Path.of(System.getenv("HOME"));
   }
   
