@@ -5,23 +5,24 @@ import java.nio.file.Path;
 public class Main {
   private static final Path HOME_lazy;
   static {
-    HOME_lazy = initHOME();
+    HOME_lazy = findHOME();
   }
   
-  private static Path initHOME() {
-    System.out.println("init HOME");
+  private static Path findHOME() {
+    System.out.println("find HOME");
+    StackWalker.getInstance().forEach(frame -> System.out.println("  from " + frame));  // print stack trace
     return Path.of(System.getenv("HOME"));
   }
   
   static class Internal {
     static void test() {
-      System.out.println(HOME_lazy);
+      System.out.println("Internal HOME_lazy: " + HOME_lazy);
     }
   }
   
   public static void main(String[] args) {
     System.out.println("main started");
+    System.out.println("HOME_lazy: " + HOME_lazy);
     Internal.test();
-    System.out.println(HOME_lazy);
   }
 }

@@ -14,6 +14,7 @@ import static org.objectweb.asm.Opcodes.PUTSTATIC;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.lang.invoke.ConstantBootstraps;
 import java.nio.file.Path;
 import java.util.HashMap;
 
@@ -32,9 +33,9 @@ import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.util.CheckClassAdapter;
 
 public class Rewriter {
-  private static final String RT_CLASS = RT.class.getName().replace('.', '/');
-  private static final Handle BSM = new Handle(H_INVOKESTATIC, RT_CLASS, "bsm",
-      "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/invoke/MethodHandle;)Ljava/lang/Object;", false);
+  private static final String CONSTANT_BOOTSTRAPS_CLASS = ConstantBootstraps.class.getName().replace('.', '/');
+  private static final Handle BSM = new Handle(H_INVOKESTATIC, CONSTANT_BOOTSTRAPS_CLASS, "invoke",
+      "(Ljava/lang/invoke/MethodHandles$Lookup;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/invoke/MethodHandle;[Ljava/lang/Object;)Ljava/lang/Object;", false);
   
   static class LazyField {
     private final FieldNode field;
@@ -223,7 +224,7 @@ public class Rewriter {
         return new MethodVisitor(ASM7, mv) {
           @Override
           public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
-            System.err.println("visitFieldInsn" + owner + '.' + name + descriptor + " in " + currentClassName);
+            //System.err.println("visitFieldInsn" + owner + '.' + name + descriptor + " in " + currentClassName);
             if (opcode == GETSTATIC && name.endsWith("_lazy")) {
               if (currentClassName.equals(owner)) {
                 var field = fieldMap.get(name + '.' + descriptor);
