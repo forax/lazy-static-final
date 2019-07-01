@@ -56,13 +56,17 @@ public class FindUnusedStaticFinal {
         return;
       }
       
-      ClassReader reader;
-      try {
-        reader = new ClassReader(className.replace('/', '.'));
+      byte[] byteArray;
+      try(var inputStream = ClassLoader.getSystemResourceAsStream(className + ".class")) {
+        byteArray = inputStream.readAllBytes();
       } catch (IOException e) {
         throw new UncheckedIOException(e);
       }
       
+      //FIXME current version of ASM doesn't support Java 14
+      byteArray[7] = 57;
+      
+      var reader = new ClassReader(byteArray);
       reader.accept(new ClassVisitor(ASM7) {
         private String currentClassName;
         
