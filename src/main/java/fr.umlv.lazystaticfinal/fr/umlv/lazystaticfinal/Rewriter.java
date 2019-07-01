@@ -262,6 +262,10 @@ public class Rewriter {
                        ::iterator) {
       System.out.println("rewrite file " + path);
       var code = readAllBytes(path);
+      
+      //FIXME Hack to support Java 14 until there is a release of ASM that support the JDK 14
+      code[7] = 57;
+      
       write(path, rewrite(code));
     }
   }
