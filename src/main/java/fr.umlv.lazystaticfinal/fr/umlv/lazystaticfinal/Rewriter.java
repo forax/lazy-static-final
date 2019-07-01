@@ -149,7 +149,14 @@ public class Rewriter {
   }
   
   private static byte[] rewrite(byte[] code) {
+    //FIXME Hack to support Java 14 until there is a release of ASM that support the JDK 14
+  	var oldVersion = code[7];
+    code[7] = 57;
+    
     var reader = new ClassReader(code);
+    // revert the change
+    code[7] = oldVersion;
+    
     var currentClassName = reader.getClassName();
     
     // first find all lazy static fields and their initializers
@@ -195,12 +202,6 @@ public class Rewriter {
     // then rewrite the bytecode
     var writer = new ClassWriter(reader, COMPUTE_MAXS|COMPUTE_FRAMES);
     reader.accept(new ClassVisitor(ASM7, writer) {
-    	@Override
-    	public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-    		// FIXME Hack: emit Java 14 bytecode
-    		super.visit((version & Opcodes.V_PREVIEW) | 58, access, name, signature, superName, interfaces);
-    	}
-    	
       @Override
       public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
         // remove lazy static field
@@ -267,11 +268,8 @@ public class Rewriter {
                        .filter(path -> path.toString().endsWith(".class"))
                        ::iterator) {
       System.out.println("rewrite file " + path);
+      
       var code = readAllBytes(path);
-      
-      //FIXME Hack to support Java 14 until there is a release of ASM that support the JDK 14
-      code[7] = 57;
-      
       write(path, rewrite(code));
     }
   }
