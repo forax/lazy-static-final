@@ -148,14 +148,19 @@ public class Rewriter {
     }
   }
   
-  private static byte[] rewrite(byte[] code) {
-    //FIXME Hack to support Java 14 until there is a release of ASM that support the JDK 14
+  private static ClassReader classReader(byte[] code) {
   	var oldVersion = code[7];
     code[7] = 57;
     
     var reader = new ClassReader(code);
     // revert the change
     code[7] = oldVersion;
+    
+    return reader;
+  }
+  
+  private static byte[] rewrite(byte[] code) {
+    var reader = classReader(code);
     
     var currentClassName = reader.getClassName();
     
@@ -256,7 +261,7 @@ public class Rewriter {
     }, 0);
     
     var newCode = writer.toByteArray();
-    CheckClassAdapter.verify(new ClassReader(newCode), false, new PrintWriter(System.err));
+    CheckClassAdapter.verify(classReader(newCode), false, new PrintWriter(System.err));
     
     return newCode;
   }
