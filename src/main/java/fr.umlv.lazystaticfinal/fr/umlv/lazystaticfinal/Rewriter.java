@@ -195,6 +195,12 @@ public class Rewriter {
     // then rewrite the bytecode
     var writer = new ClassWriter(reader, COMPUTE_MAXS|COMPUTE_FRAMES);
     reader.accept(new ClassVisitor(ASM7, writer) {
+    	@Override
+    	public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+    		// FIXME Hack: emit Java 14 bytecode
+    		super.visit((version & Opcodes.V_PREVIEW) | 58, access, name, signature, superName, interfaces);
+    	}
+    	
       @Override
       public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
         // remove lazy static field
