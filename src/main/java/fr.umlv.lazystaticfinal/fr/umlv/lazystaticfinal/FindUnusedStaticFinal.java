@@ -63,9 +63,6 @@ public class FindUnusedStaticFinal {
         throw new UncheckedIOException(e);
       }
       
-      //FIXME current version of ASM doesn't support Java 14
-      byteArray[7] = 57;
-      
       var reader = new ClassReader(byteArray);
       reader.accept(new ClassVisitor(ASM7) {
         private String currentClassName;
@@ -125,8 +122,13 @@ public class FindUnusedStaticFinal {
         .flatMap(e -> e.getValue().stream().map(fieldName -> e.getKey() + "." + fieldName))
         .filter(privateStaticFinalSet::contains)
         .count());
+    
     fieldMap.forEach((className, localFields) -> {
-      System.out.println(className + " " + localFields);
+    	for(String fieldNameAndType: localFields) {
+    		if (privateStaticFinalSet.contains(className + "." + fieldNameAndType)) {
+    			System.out.println(className + "." + fieldNameAndType);
+    		}
+    	}
     });
   }
 }
