@@ -63,6 +63,8 @@ public class FindUnusedStaticFinal {
         throw new UncheckedIOException(e);
       }
       
+      VersionPatcher.patch(byteArray);
+      
       var reader = new ClassReader(byteArray);
       reader.accept(new ClassVisitor(ASM7) {
         private String currentClassName;

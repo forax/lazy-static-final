@@ -149,8 +149,9 @@ public class Rewriter {
   }
   
   private static byte[] rewrite(byte[] code) {
-    var reader = new ClassReader(code);
+    var version = VersionPatcher.patch(code);
     
+    var reader = new ClassReader(code);
     var currentClassName = reader.getClassName();
     
     // first find all lazy static fields and their initializers
@@ -251,7 +252,7 @@ public class Rewriter {
     
     var newCode = writer.toByteArray();
     CheckClassAdapter.verify(new ClassReader(newCode), false, new PrintWriter(System.err));
-    
+    VersionPatcher.unpatch(newCode, version);
     return newCode;
   }
   
