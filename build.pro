@@ -11,10 +11,10 @@ resolver.
         "org.opentest4j=org.opentest4j:opentest4j:1.1.1",
         
         // ASM 7
-        "org.objectweb.asm:7.2-beta",
-        "org.objectweb.asm.util:7.2-beta",
-        "org.objectweb.asm.tree:7.2-beta",
-        "org.objectweb.asm.tree.analysis:7.2-beta"
+        "org.objectweb.asm:7.3.1",
+        "org.objectweb.asm.util:7.3.1",
+        "org.objectweb.asm.tree:7.3.1",
+        "org.objectweb.asm.tree.analysis:7.3.1"
     )
 
 compiler.
